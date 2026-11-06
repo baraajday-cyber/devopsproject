@@ -1,0 +1,8 @@
+services:
+  api:
+    build: .
+    image: task-api:latest
+    container_name: task-api
+    ports:
+      - "5000:5000"
+    restart: unless-stopped
