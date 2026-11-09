@@ -119,10 +119,17 @@ def create_app():
     def update_task(task_id):
         if task_id not in tasks:
             return jsonify(error="tâche introuvable"), 404
-        data = request.get_json(silent=True) or {}
-        if "title" in data and (not isinstance(data["title"], str) or not data["title"].strip()):
-            return jsonify(error="'title' invalide"), 400
-        tasks[task_id].update({k: data[k] for k in ("title", "done") if k in data})
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            return jsonify(error="corps JSON invalide"), 400
+        if "title" in data:
+            if not isinstance(data["title"], str) or not data["title"].strip():
+                return jsonify(error="'title' invalide"), 400
+            tasks[task_id]["title"] = data["title"].strip()
+        if "done" in data:
+            if not isinstance(data["done"], bool):
+                return jsonify(error="'done' doit être un booléen"), 400
+            tasks[task_id]["done"] = data["done"]
         return jsonify(tasks[task_id])
 
     @app.delete("/tasks/<int:task_id>")
