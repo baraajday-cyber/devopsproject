@@ -138,12 +138,4 @@ jobs:
           target: http://localhost:8080
           fail_action: false
           allow_issue_writing: false
-          artifact_name: ""
-          cmd_options: "-I -w /zap/wrk/zap_report.html"
-
-      - name: Rapport ZAP (artefact)
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: zap-report
-          path: zap_report.html
+          artifact_name: zap-report
