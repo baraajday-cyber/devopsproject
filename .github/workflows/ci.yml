@@ -132,10 +132,19 @@ jobs:
           curl -sf http://localhost:8080/health
 
       # DAST ZAP baseline sur l'app déployée (issue #8)
+      # Appel direct de zap-baseline.py (l'action wrapper a un bug d'artefact)
       - name: Scan DAST ZAP baseline
-        uses: zaproxy/action-baseline@v0.12.0
+        run: |
+          docker run --rm --add-host=host.docker.internal:host-gateway \
+            -v ${{ github.workspace }}:/zap/wrk/:rw \
+            zaproxy/zap-stable:latest zap-baseline.py \
+            -t http://host.docker.internal:8080 \
+            -r zap_report.html -I || true
+          ls -la zap_report.html
+
+      - name: Rapport ZAP (artefact)
+        uses: actions/upload-artifact@v4
+        if: always()
         with:
-          target: http://localhost:8080
-          fail_action: false
-          allow_issue_writing: false
-          artifact_name: zap-report
+          name: zap-report
+          path: zap_report.html
