@@ -92,3 +92,46 @@ jobs:
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/task-api:latest
             ${{ secrets.DOCKERHUB_USERNAME }}/task-api:${{ github.sha }}
+
+  dast:
+    needs: docker
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Cluster kind + déploiement de l'app (issue #8)
+      - name: Créer le cluster kind
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: taskapi
+
+      - name: Déployer les manifests
+        run: |
+          kubectl apply -f k8s/deployment.yaml
+          kubectl apply -f k8s/service.yaml
+          kubectl set image deployment/task-api task-api=task-api:latest
+          kubectl rollout status deployment/task-api --timeout=120s
+
+      - name: Exposer l'app localement
+        run: |
+          nohup kubectl port-forward svc/task-api 8080:80 >/dev/null 2>&1 &
+          for i in $(seq 1 15); do
+            if curl -sf http://localhost:8080/health; then break; fi
+            sleep 2
+          done
+          curl -sf http://localhost:8080/health
+
+      # DAST ZAP baseline sur l'app déployée (issue #8)
+      - name: Scan DAST ZAP baseline
+        uses: zaproxy/action-baseline@v0.12.0
+        with:
+          target: http://localhost:8080
+          fail_action: false
+          cmd_options: "-I"
+
+      - name: Rapport ZAP (artefact)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: zap-report
+          path: zap_report.html

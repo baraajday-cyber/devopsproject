@@ -5,7 +5,7 @@ metadata:
   labels:
     app: task-api
 spec:
-  replicas: 2
+  replicas: 1  # stockage en memoire : 1 seul pod pour coherence des donnees
   selector:
     matchLabels:
       app: task-api
