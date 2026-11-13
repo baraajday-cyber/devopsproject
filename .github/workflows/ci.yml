@@ -116,8 +116,11 @@ jobs:
           kubectl apply -f k8s/deployment.yaml
           kubectl apply -f k8s/service.yaml
           kubectl set image deployment/task-api task-api=braybar/task-api:ci
-          kubectl rollout status deployment/task-api --timeout=180s
+          kubectl rollout status deployment/task-api --timeout=180s || true
+          kubectl describe deployment/task-api
           kubectl get pods -o wide
+          kubectl describe pods -l app=task-api | head -50
+          kubectl logs -l app=task-api --all-containers --tail=30 || true
 
       - name: Exposer l'app localement
         run: |

@@ -17,6 +17,7 @@ spec:
       containers:
         - name: task-api
           image: braybar/task-api:latest
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 5000
           resources:
