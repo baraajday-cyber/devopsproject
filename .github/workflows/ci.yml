@@ -99,18 +99,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Build de l'image (pour le cluster local)
+        run: docker build -t braybar/task-api:ci .
+
       # Cluster kind + déploiement de l'app (issue #8)
       - name: Créer le cluster kind
         uses: helm/kind-action@v1
         with:
           cluster_name: taskapi
 
+      - name: Charger l'image dans kind
+        run: kind load docker-image braybar/task-api:ci --name taskapi
+
       - name: Déployer les manifests
         run: |
           kubectl apply -f k8s/deployment.yaml
           kubectl apply -f k8s/service.yaml
-          kubectl set image deployment/task-api task-api=task-api:latest
-          kubectl rollout status deployment/task-api --timeout=120s
+          kubectl set image deployment/task-api task-api=braybar/task-api:ci
+          kubectl rollout status deployment/task-api --timeout=180s
+          kubectl get pods -o wide
 
       - name: Exposer l'app localement
         run: |
