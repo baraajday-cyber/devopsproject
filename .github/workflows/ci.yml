@@ -135,10 +135,10 @@ jobs:
       # Appel direct de zap-baseline.py (l'action wrapper a un bug d'artefact)
       - name: Scan DAST ZAP baseline
         run: |
-          docker run --rm --user root --add-host=host.docker.internal:host-gateway \
+          docker run --rm --user root --network host \
             -v ${{ github.workspace }}:/zap/wrk/:rw \
             zaproxy/zap-stable:latest zap-baseline.py \
-            -t http://host.docker.internal:8080 \
+            -t http://localhost:8080 \
             -r zap_report.html -I || true
           ls -la zap_report.html
 
