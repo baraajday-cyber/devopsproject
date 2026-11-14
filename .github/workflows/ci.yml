@@ -92,3 +92,59 @@ jobs:
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/task-api:latest
             ${{ secrets.DOCKERHUB_USERNAME }}/task-api:${{ github.sha }}
+
+  dast:
+    needs: docker
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build de l'image (pour le cluster local)
+        run: docker build -t braybar/task-api:ci .
+
+      # Cluster kind + déploiement de l'app (issue #8)
+      - name: Créer le cluster kind
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: taskapi
+
+      - name: Charger l'image dans kind
+        run: kind load docker-image braybar/task-api:ci --name taskapi
+
+      - name: Déployer les manifests
+        run: |
+          kubectl apply -f k8s/deployment.yaml
+          kubectl apply -f k8s/service.yaml
+          kubectl set image deployment/task-api task-api=braybar/task-api:ci
+          kubectl rollout status deployment/task-api --timeout=180s || true
+          kubectl describe deployment/task-api
+          kubectl get pods -o wide
+          kubectl describe pods -l app=task-api | head -50
+          kubectl logs -l app=task-api --all-containers --tail=30 || true
+
+      - name: Exposer l'app localement
+        run: |
+          nohup kubectl port-forward svc/task-api 8080:80 >/dev/null 2>&1 &
+          for i in $(seq 1 15); do
+            if curl -sf http://localhost:8080/health; then break; fi
+            sleep 2
+          done
+          curl -sf http://localhost:8080/health
+
+      # DAST ZAP baseline sur l'app déployée (issue #8)
+      # Appel direct de zap-baseline.py (l'action wrapper a un bug d'artefact)
+      - name: Scan DAST ZAP baseline
+        run: |
+          docker run --rm --user root --add-host=host.docker.internal:host-gateway \
+            -v ${{ github.workspace }}:/zap/wrk/:rw \
+            zaproxy/zap-stable:latest zap-baseline.py \
+            -t http://host.docker.internal:8080 \
+            -r zap_report.html -I || true
+          ls -la zap_report.html
+
+      - name: Rapport ZAP (artefact)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: zap-report
+          path: zap_report.html
