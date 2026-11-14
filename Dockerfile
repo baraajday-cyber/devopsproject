@@ -12,8 +12,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app.py .
 
 # Exécution sans les droits root
-RUN useradd --create-home appuser
-USER appuser
+RUN useradd --create-home --uid 1000 appuser
+USER 1000
 
 EXPOSE 5000
 
